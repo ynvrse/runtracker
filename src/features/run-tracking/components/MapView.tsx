@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 
 import { LatLngExpression } from 'leaflet';
 import L from 'leaflet';

@@ -4,6 +4,10 @@ import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from
 import { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
 
+import useGeolocation from '../hooks/useGeolocation';
+import AnimatedMarker from './AnimatedMarker';
+import StravaPolyline from './StravaPolyline';
+
 // Fix untuk marker icons Leaflet di React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -76,7 +80,7 @@ function RouteStats({ route }: { route: LatLngExpression[] }) {
 
 export default function MapView({ position, route, isTracking = false }: MapViewProps) {
   const defaultPosition: LatLngExpression = [-3.3194, 114.5906]; // Banjarmasin
-
+  const location = useGeolocation({ enabled: true });
   return (
     <div className="relative w-full h-96 rounded-xl overflow-hidden shadow-lg bg-gray-100">
       <MapContainer
@@ -86,6 +90,8 @@ export default function MapView({ position, route, isTracking = false }: MapView
         style={{ height: '100%', width: '100%' }}
         className="rounded-xl"
       >
+        {/* Add SVG gradient definition */}
+
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -96,7 +102,7 @@ export default function MapView({ position, route, isTracking = false }: MapView
             <ChangeView center={position} zoom={isTracking ? 17 : 15} />
 
             {/* Current position marker */}
-            <Marker position={position}>
+            {/* <Marker position={position}>
               <Popup>
                 <div className="text-center">
                   <strong>Current Location</strong>
@@ -104,35 +110,17 @@ export default function MapView({ position, route, isTracking = false }: MapView
                   {isTracking ? 'Tracking active...' : 'You are here'}
                 </div>
               </Popup>
-            </Marker>
+            </Marker> */}
 
             {/* Accuracy circle */}
-            {isTracking && (
-              <Circle
-                center={position}
-                radius={10}
-                pathOptions={{
-                  color: '#3b82f6',
-                  fillColor: '#3b82f6',
-                  fillOpacity: 0.1,
-                  weight: 2,
-                }}
-              />
-            )}
 
-            {/* Route polyline */}
-            {route.length > 1 && (
-              <Polyline
-                pathOptions={{
-                  color: '#1d4ed8',
-                  weight: 4,
-                  opacity: 0.8,
-                  lineCap: 'round',
-                  lineJoin: 'round',
-                }}
-                positions={route}
-              />
-            )}
+            {/* <StravaStylePolyline route={route} isTracking={isTracking} /> */}
+            <AnimatedMarker
+              position={position}
+              isTracking={isTracking}
+              accuracy={location.accuracy}
+            />
+            {route.length > 1 && <StravaPolyline route={route} isTracking={isTracking} />}
           </>
         )}
       </MapContainer>

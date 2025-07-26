@@ -168,3 +168,53 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Tambahkan di CSS global */
+
+/* SVG Gradient Definition */
+.leaflet-overlay-pane svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Strava-style animations */
+.strava-animated {
+  animation: stravaFlow 2s ease-in-out infinite;
+}
+
+@keyframes stravaFlow {
+  0%,
+  100% {
+    stroke-dasharray: 0, 1000;
+    opacity: 0.9;
+  }
+  50% {
+    stroke-dasharray: 20, 1000;
+    opacity: 1;
+  }
+}
+
+/* Glow effect */
+.strava-main {
+  filter: drop-shadow(0 0 6px rgba(255, 107, 53, 0.4));
+}
+
+.strava-shadow {
+  filter: blur(2px);
+}
+
+/* Pulsing effect for active tracking */
+@keyframes stravaPulse {
+  0%,
+  100% {
+    stroke-width: 6;
+    opacity: 0.9;
+  }
+  50% {
+    stroke-width: 8;
+    opacity: 1;
+  }
+}
+
+.strava-tracking {
+  animation: stravaPulse 1.5s ease-in-out infinite;
+}

@@ -210,7 +210,7 @@ export default function RunControls({
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-3 rounded-lg bg-gray-50 px-4 py-2 shadow-sm">
+        <div className="flex items-start gap-3 rounded-lg bg-green-100 px-4 py-2 shadow-sm">
           {/* Status text & accuracy */}
           <div className="text-sm text-gray-700 space-y-0.5">
             <div className="text-xs text-gray-500 flex items-center gap-1">

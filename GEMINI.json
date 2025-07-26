@@ -1,0 +1,122 @@
+{
+  "project_name": "run-tracker-pwa",
+  "tech_stack": {
+    "frontend": "React + Vite",
+    "ui_library": "material UI",
+    "pwa_support": true,
+    "map_library": "react-leaflet + leaflet",
+    "realtime_database": "InstantDB",
+    "geolocation": "Web Geolocation API"
+  },
+  "features": [
+    "Real-time location tracking",
+    "Display running route on map",
+    "Calculate distance using GPS points",
+    "Live run session storage to InstantDB",
+    "Save past sessions locally (optional IndexedDB)",
+    "Offline-first with PWA",
+    "Clean UI with material UI"
+  ],
+  "project_setup": [
+    {
+      "step": "Create Vite React project",
+      "command": "npm create vite@latest run-tracker-pwa --template react"
+    },
+    {
+      "step": "Install dependencies",
+      "command": "npm install leaflet react-leaflet instantdb "
+    },
+    {
+      "step": "Enable PWA support",
+      "plugin": "vite-plugin-pwa",
+      "command": "npm install vite-plugin-pwa",
+      "config_file": "vite.config.ts",
+      "config_addition": {
+        "pwa": {
+          "registerType": "autoUpdate",
+          "includeAssets": ["favicon.svg", "robots.txt"],
+          "manifest": {
+            "name": "Run Tracker PWA",
+            "short_name": "RunTracker",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#0f172a",
+            "icons": [
+              {
+                "src": "/pwa-192x192.png",
+                "sizes": "192x192",
+                "type": "image/png"
+              },
+              {
+                "src": "/pwa-512x512.png",
+                "sizes": "512x512",
+                "type": "image/png"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "step": "Initialize ShadCN UI",
+      "command": "npx shadcn-ui@latest init",
+      "config": {
+        "theme": "default",
+        "components": ["button", "card", "input"]
+      }
+    }
+  ],
+  "components": [
+    {
+      "name": "MapView",
+      "description": "Render user location and route on map",
+      "libraries": ["react-leaflet", "leaflet"],
+      "props": ["routeCoordinates"],
+      "map_provider": "OpenStreetMap"
+    },
+    {
+      "name": "RunTracker",
+      "description": "Start, track, and stop a running session",
+      "logic": [
+        "Use navigator.geolocation.watchPosition",
+        "Append each lat/lng to route array",
+        "Push route to InstantDB in real-time"
+      ]
+    },
+    {
+      "name": "RunSummary",
+      "description": "Display total time, distance, and path after a run",
+      "calculate_distance": "Haversine formula or geolib"
+    }
+  ],
+  "instantdb_integration": {
+    "library": "instantdb",
+    "setup": {
+      "import": "import { useInstant } from 'instantdb/react';",
+      "usage": "const db = useInstant(); db.set(['runs', userId, runId, 'route'], (prev = []) => [...prev, point]);"
+    },
+    "realtime_example": {
+      "watch": "db.subscribe(['runs', userId, runId, 'route'], callback)"
+    }
+  },
+  "geolocation_tracking": {
+    "api": "navigator.geolocation.watchPosition",
+    "options": {
+      "enableHighAccuracy": true,
+      "timeout": 5000,
+      "maximumAge": 0
+    },
+    "storage": "Push new point to InstantDB and local state"
+  },
+  "optional_features": [
+    "Store completed runs to local IndexedDB",
+    "Share run with unique link (runId)",
+    "Dark mode toggle (via ShadCN)"
+  ],
+  "output": {
+    "installable_app": true,
+    "works_offline": true,
+    "mobile_friendly": true
+  }
+}

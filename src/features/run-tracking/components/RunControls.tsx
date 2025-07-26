@@ -145,43 +145,44 @@ export default function RunControls({
       )}
 
       {/* Secondary Actions */}
-      {/* {!isRunning && hasRoute && (
-        <div className="flex justify-center">
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-600 font-medium">
-                Run completed! What would you like to do?
-              </div>
+      {!isRunning && hasRoute && (
+        // <div className="flex justify-center">
+        //   <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-gray-200 shadow-sm">
+        //     <div className="flex items-center gap-3">
+        //       <div className="text-sm text-gray-600 font-medium">
+        //         Run completed! What would you like to do?
+        //       </div>
 
-              <div className="flex gap-2">
-                {onSave && (
-                  <Button
-                    onClick={onSave}
-                    variant="outline"
-                    size="sm"
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300 rounded-lg transition-all duration-200"
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    Save
-                  </Button>
-                )}
+        <div className="flex gap-2">
+          {onSave && (
+            <Button
+              onClick={onSave}
+              variant="outline"
+              size="sm"
+              className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 hover:border-blue-300 rounded-lg transition-all duration-200"
+            >
+              <Save className="w-4 h-4 mr-1" />
+              Save
+            </Button>
+          )}
 
-                {onReset && (
-                  <Button
-                    onClick={onReset}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg transition-all duration-200"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-1" />
-                    New Run
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+          {onReset && (
+            <Button
+              onClick={onReset}
+              variant="outline"
+              size="sm"
+              className="rounded-lg transition-all duration-200"
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              New Run
+            </Button>
+          )}
         </div>
-      )} */}
+
+        //     </div>
+        //   </div>
+        // </div>
+      )}
 
       {/* Status Indicator */}
       <div className="flex justify-between mb-3 ">

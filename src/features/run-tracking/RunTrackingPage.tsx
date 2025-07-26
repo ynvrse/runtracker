@@ -97,10 +97,9 @@ export default function RunTrackingPage() {
         const distance = calculateDistance([lastPoint, newPoint]);
 
         // Only add if moved more than 5 meters
-        if (distance > 5) {
+        if (location.accuracy && location.accuracy < 10 && distance > 5) {
           return [...prevRoute, newPoint];
         }
-
         return prevRoute;
       });
     }

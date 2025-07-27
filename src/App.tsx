@@ -4,11 +4,7 @@ import { router } from './Router';
 import { ThemeProvider } from './components/theme-provider';
 
 function App() {
-  return (
-    <ThemeProvider defaultTheme="dark" storageKey="run-tracker-theme">
-      <RouterProvider router={router} />
-    </ThemeProvider>
-  );
+  return <RouterProvider router={router} />;
 }
 
 export default App;

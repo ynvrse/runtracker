@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { LatLngExpression } from 'leaflet';
@@ -7,6 +7,7 @@ import { Activity, ArrowLeft, MapPin, Route, Timer } from 'lucide-react';
 import MapView from './components/MapView';
 import RunControls from './components/RunControls';
 import useGeolocation from './hooks/useGeolocation';
+import useRunSession, { type RunSession } from './hooks/useRunSession';
 
 interface RunStats {
   distance: number;
@@ -17,6 +18,7 @@ interface RunStats {
 
 export default function RunTrackingPage() {
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [route, setRoute] = useState<LatLngExpression[]>([]);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [duration, setDuration] = useState(0);
@@ -28,6 +30,44 @@ export default function RunTrackingPage() {
   });
 
   const location = useGeolocation({ enabled: isRunning });
+  const runSession = useRunSession();
+  const sessionLoadedRef = useRef(false);
+
+  // Load existing session on mount (only once)
+  useEffect(() => {
+    if (!sessionLoadedRef.current) {
+      const existingSession = runSession.getCurrentSession();
+      if (existingSession) {
+        // Restore route data
+        const routePoints = existingSession.run_data.route.map(
+          (p) => [p.lat, p.lng] as LatLngExpression,
+        );
+        setRoute(routePoints);
+
+        // Restore states
+        setIsRunning(existingSession.run_state.isRecording);
+        setIsPaused(existingSession.run_state.isPaused);
+        setStartTime(existingSession.run_state.startTime);
+        setDuration(existingSession.run_data.duration);
+
+        // Restore stats
+        setStats({
+          distance: existingSession.run_data.distance,
+          duration: existingSession.run_data.duration,
+          pace:
+            existingSession.run_data.duration > 0
+              ? existingSession.run_data.distance /
+                1000 /
+                (existingSession.run_data.duration / 3600)
+              : 0,
+          points: existingSession.run_data.pointCount,
+        });
+
+        console.log('Session restored:', existingSession);
+      }
+      sessionLoadedRef.current = true;
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   // Timer effect
   useEffect(() => {
@@ -37,13 +77,18 @@ export default function RunTrackingPage() {
       interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setDuration(elapsed);
+
+        // Update session stats
+        runSession.updateRunStats({
+          duration: elapsed,
+        });
       }, 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, startTime]);
+  }, [isRunning, startTime]); // Remove runSession from dependencies
 
   // Calculate distance using Haversine formula
   const calculateDistance = useCallback((points: LatLngExpression[]) => {
@@ -69,27 +114,42 @@ export default function RunTrackingPage() {
     return totalDistance;
   }, []);
 
-  // Update stats when route changes
+  // Update stats when route changes - simplified
   useEffect(() => {
     const distance = calculateDistance(route);
     const pace = duration > 0 ? distance / 1000 / (duration / 3600) : 0; // km/h
 
-    setStats({
+    const newStats = {
       distance,
       duration,
       pace,
       points: route.length,
-    });
-  }, [route, duration, calculateDistance]);
+    };
+
+    setStats(newStats);
+
+    // Update session stats only when tracking
+    if (isRunning || isPaused) {
+      runSession.updateRunStats({
+        distance,
+        pointCount: route.length,
+      });
+    }
+  }, [route, duration, calculateDistance]); // Remove reactive dependencies
 
   // Add new location to route when tracking
   useEffect(() => {
     if (isRunning && location.latitude && location.longitude) {
       const newPoint: LatLngExpression = [location.latitude, location.longitude];
 
-      // Only add point if it's significantly different from the last one (reduces noise)
       setRoute((prevRoute) => {
         if (prevRoute.length === 0) {
+          // Add first point to session
+          runSession.addRoutePoint({
+            lat: location.latitude!,
+            lng: location.longitude!,
+            accuracy: location.accuracy,
+          });
           return [newPoint];
         }
 
@@ -98,36 +158,82 @@ export default function RunTrackingPage() {
 
         // Only add if moved more than 5 meters
         if (location.accuracy && location.accuracy < 10 && distance > 5) {
+          // Add point to session
+          runSession.addRoutePoint({
+            lat: location.latitude!,
+            lng: location.longitude!,
+            accuracy: location.accuracy,
+          });
           return [...prevRoute, newPoint];
         }
         return prevRoute;
       });
     }
-  }, [location, isRunning, calculateDistance]);
+  }, [location.latitude, location.longitude, location.accuracy, isRunning]); // Specific location properties only
 
   const handleStart = () => {
     console.log('Starting run...');
+
+    // Start new session
+    const session = runSession.startTracking();
+
+    // Reset states
     setRoute([]);
-    setStartTime(Date.now());
+    setStartTime(session.run_state.startTime);
     setDuration(0);
     setIsRunning(true);
+    setIsPaused(false);
+    setStats({
+      distance: 0,
+      duration: 0,
+      pace: 0,
+      points: 0,
+    });
   };
 
   const handleStop = () => {
     console.log('Stopping run...');
+
+    // Stop session tracking
+    runSession.stopTracking();
+
     setIsRunning(false);
+    setIsPaused(false);
     setStartTime(null);
+
+    // Clear session immediately untuk testing
+    runSession.clearSession();
+
+    // Reset UI state
+    setRoute([]);
+    setDuration(0);
+    setStats({
+      distance: 0,
+      duration: 0,
+      pace: 0,
+      points: 0,
+    });
   };
 
   const handlePause = () => {
+    console.log('Pausing run...');
+
+    // Pause session
+    runSession.pauseTracking();
+
     setIsRunning(false);
+    setIsPaused(true);
   };
 
   const handleResume = () => {
-    if (startTime) {
-      const pausedDuration = duration;
-      setStartTime(Date.now() - pausedDuration * 1000);
+    console.log('Resuming run...');
+
+    // Resume session
+    const session = runSession.resumeTracking();
+    if (session) {
+      setStartTime(session.run_state.startTime);
       setIsRunning(true);
+      setIsPaused(false);
     }
   };
 
@@ -182,6 +288,13 @@ export default function RunTrackingPage() {
                 <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                   <span>LIVE</span>
+                </div>
+              )}
+
+              {isPaused && (
+                <div className="flex items-center space-x-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span>PAUSED</span>
                 </div>
               )}
 
@@ -270,11 +383,15 @@ export default function RunTrackingPage() {
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
               <div>
                 <p>
-                  <strong>Status:</strong> {isRunning ? 'Running' : 'Stopped'}
+                  <strong>Status:</strong> {isRunning ? 'Running' : isPaused ? 'Paused' : 'Stopped'}
                 </p>
                 <p>
                   <strong>GPS:</strong>{' '}
                   {location.latitude && location.longitude ? 'Active' : 'Inactive'}
+                </p>
+                <p>
+                  <strong>Session:</strong>{' '}
+                  {runSession.getCurrentSession()?.metadata.sessionId?.slice(-8) || 'None'}
                 </p>
               </div>
               <div>
@@ -284,6 +401,10 @@ export default function RunTrackingPage() {
                 <p>
                   <strong>Accuracy:</strong>{' '}
                   {location.accuracy ? `${location.accuracy.toFixed(0)}m` : 'N/A'}
+                </p>
+                <p>
+                  <strong>Session Points:</strong>{' '}
+                  {runSession.getCurrentSession()?.run_data.pointCount || 0}
                 </p>
               </div>
             </div>

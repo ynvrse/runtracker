@@ -244,7 +244,7 @@ export default function useRunSession(): UseRunSessionReturn {
     const startTime = Date.now();
 
     // Clear existing session and create new one
-    const newSession = createNewSession();
+    // const newSession = createNewSession();
     const session = updateSession({
       run_state: {
         isRecording: true,

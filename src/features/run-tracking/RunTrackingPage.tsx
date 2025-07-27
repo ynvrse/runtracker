@@ -7,7 +7,7 @@ import { Activity, ArrowLeft, MapPin, Route, Timer } from 'lucide-react';
 import MapView from './components/MapView';
 import RunControls from './components/RunControls';
 import useGeolocation from './hooks/useGeolocation';
-import useRunSession, { type RunSession } from './hooks/useRunSession';
+import useRunSession from './hooks/useRunSession';
 
 interface RunStats {
   distance: number;

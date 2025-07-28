@@ -1,4 +1,6 @@
 # replace with your environment variables
 
-VITE_ENV_VAR_1=
-VITE_ENV_VAR_2=
+VITE_INSTANT_APP_ADMIN_TOKEN=per_c8a9e94698b151d981b4fc8986c3de4d522e762c0923813facdebdf6bb97fe47
+VITE_INSTANTDB_APP_ID=d91bb2b2-beb3-4b7c-85ca-460a61d99770
+VITE_GOOGLE_CLIENT_ID=528870590349-e0tnftfmngmf9qvqfcq6aoo4nb3aj7bh.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_NAME=google-web

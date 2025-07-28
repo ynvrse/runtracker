@@ -4,9 +4,14 @@ import { Link } from 'react-router-dom';
 import { LatLngExpression } from 'leaflet';
 import { Activity, ArrowLeft, MapPin, Route, Timer } from 'lucide-react';
 
+import { db } from '@/lib/instantDB';
+
+import { SaveRunFormData } from '../../types/run';
 import MapView from './components/MapView';
 import RunControls from './components/RunControls';
+import SaveRunModal from './components/SaveModal';
 import useGeolocation from './hooks/useGeolocation';
+import { useRunCrud } from './hooks/useRunCrud';
 import useRunSession from './hooks/useRunSession';
 
 interface RunStats {
@@ -14,6 +19,17 @@ interface RunStats {
   duration: number;
   pace: number;
   points: number;
+}
+
+// TAMBAHAN: Interface untuk menyimpan data run sementara
+interface CurrentRunData {
+  sessionData: any;
+  stats: RunStats;
+  route: LatLngExpression[];
+}
+
+function safeArray<T>(value: T[] | undefined | null): T[] {
+  return Array.isArray(value) ? value : [];
 }
 
 export default function RunTrackingPage() {
@@ -29,9 +45,17 @@ export default function RunTrackingPage() {
     points: 0,
   });
 
+  const { user } = db.useAuth();
+
   const location = useGeolocation({ enabled: isRunning });
   const runSession = useRunSession();
   const sessionLoadedRef = useRef(false);
+
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const { saveRun, loading: saveLoading, error: saveError } = useRunCrud();
+
+  // PERBAIKAN 1: State untuk menyimpan data run sementara
+  const [currentRunData, setCurrentRunData] = useState<CurrentRunData | null>(null);
 
   // Load existing session on mount (only once)
   useEffect(() => {
@@ -67,7 +91,7 @@ export default function RunTrackingPage() {
       }
       sessionLoadedRef.current = true;
     }
-  }, []); // Empty dependency array - only run once on mount
+  }, []);
 
   // Timer effect
   useEffect(() => {
@@ -88,7 +112,7 @@ export default function RunTrackingPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, startTime]); // Remove runSession from dependencies
+  }, [isRunning, startTime]);
 
   // Calculate distance using Haversine formula
   const calculateDistance = useCallback((points: LatLngExpression[]) => {
@@ -135,7 +159,7 @@ export default function RunTrackingPage() {
         pointCount: route.length,
       });
     }
-  }, [route, duration, calculateDistance]); // Remove reactive dependencies
+  }, [route, duration, calculateDistance]);
 
   // Add new location to route when tracking
   useEffect(() => {
@@ -169,10 +193,12 @@ export default function RunTrackingPage() {
         return prevRoute;
       });
     }
-  }, [location.latitude, location.longitude, location.accuracy, isRunning]); // Specific location properties only
+  }, [location.latitude, location.longitude, location.accuracy, isRunning]);
 
   const handleStart = () => {
     console.log('Starting run...');
+
+    const startTime = Date.now();
 
     // Start new session
     const session = runSession.startTracking();
@@ -189,22 +215,96 @@ export default function RunTrackingPage() {
       pace: 0,
       points: 0,
     });
+
+    //
+    // Backup ke localStorage
+    localStorage.setItem('run_start_time', startTime.toString());
+
+    console.log('Run started at:', startTime);
+
+    // Clear any previous run data
+    setCurrentRunData(null);
   };
 
+  // PERBAIKAN 2: Fix handleStop - simpan data SEBELUM clear
   const handleStop = () => {
     console.log('Stopping run...');
 
-    // Stop session tracking
+    // PENTING: Ambil session data SEBELUM stop tracking
+    const sessionData = runSession.getCurrentSession();
+    console.log('Session data before stop:', sessionData);
+
+    // Stop session tracking tapi JANGAN clear session dulu
     runSession.stopTracking();
 
     setIsRunning(false);
     setIsPaused(false);
     setStartTime(null);
 
-    // Clear session immediately untuk testing
+    // PERBAIKAN: Cek apakah ada data yang meaningful untuk disave
+    if (sessionData && route.length > 0 && stats.distance > 0) {
+      console.log('Saving current run data for modal');
+
+      // Simpan data current run untuk modal
+      setCurrentRunData({
+        sessionData: sessionData,
+        stats: { ...stats },
+        route: [...route],
+      });
+
+      setShowSaveModal(true);
+
+      // JANGAN reset UI state di sini - biarkan user lihat data di modal
+    } else {
+      console.log('No meaningful data to save, discarding');
+      handleDiscardRun();
+    }
+  };
+
+  // PERBAIKAN 3: Fix handleSaveRun
+  const handleSaveRun = async (formData: SaveRunFormData) => {
+    try {
+      const userId = user?.id;
+
+      if (!currentRunData || !currentRunData.sessionData)
+        throw new Error('No run data available to save');
+
+      let startTime = currentRunData.sessionData.run_state?.startTime;
+      if (!startTime) {
+        const fallback = localStorage.getItem('run_start_time');
+        if (fallback) startTime = parseInt(fallback);
+      }
+      if (!startTime) throw new Error('Start time is missing');
+
+      const runData = {
+        ...formData,
+        route: safeArray(currentRunData.sessionData.run_data?.route),
+        distance: currentRunData.stats.distance,
+        duration: currentRunData.stats.duration,
+        started_at: startTime,
+        ended_at: Date.now(),
+      };
+
+      const result = await saveRun(runData, userId);
+      if (result.success) {
+        setShowSaveModal(false);
+        setCurrentRunData(null);
+        handleDiscardRun();
+      } else {
+        throw new Error(result.error || 'Failed to save run');
+      }
+    } catch (error) {
+      alert('Failed to save run: ' + error);
+    }
+  };
+
+  // PERBAIKAN 4: Update handleDiscardRun
+  const handleDiscardRun = () => {
+    // Clear session data
     runSession.clearSession();
 
     // Reset UI state
+    setStartTime(null);
     setRoute([]);
     setDuration(0);
     setStats({
@@ -213,6 +313,17 @@ export default function RunTrackingPage() {
       pace: 0,
       points: 0,
     });
+
+    // Clear modal data
+    setShowSaveModal(false);
+    setCurrentRunData(null);
+  };
+
+  // Handle close modal
+  const handleCloseModal = () => {
+    if (window.confirm('Are you sure you want to discard this run?')) {
+      handleDiscardRun();
+    }
   };
 
   const handlePause = () => {
@@ -368,6 +479,26 @@ export default function RunTrackingPage() {
           hasRoute={route.length > 0}
         />
 
+        {/* PERBAIKAN 5: Modal menggunakan data yang disimpan */}
+        <SaveRunModal
+          isOpen={showSaveModal}
+          onClose={handleCloseModal}
+          onSave={handleSaveRun}
+          runStats={currentRunData?.stats || stats} // Gunakan saved data atau fallback ke current
+          route={
+            currentRunData?.route?.map((point) => ({
+              lat: (point as [number, number])[0],
+              lng: (point as [number, number])[1],
+            })) ||
+            route.map((point) => ({
+              lat: (point as [number, number])[0],
+              lng: (point as [number, number])[1],
+            }))
+          }
+          isLoading={saveLoading}
+          error={saveError}
+        />
+
         {/* Map */}
         <div className="mb-6">
           <MapView position={currentPosition} route={route} isTracking={isRunning} />
@@ -405,6 +536,9 @@ export default function RunTrackingPage() {
                 <p>
                   <strong>Session Points:</strong>{' '}
                   {runSession.getCurrentSession()?.run_data.pointCount || 0}
+                </p>
+                <p>
+                  <strong>Saved Data:</strong> {currentRunData ? 'Available' : 'None'}
                 </p>
               </div>
             </div>

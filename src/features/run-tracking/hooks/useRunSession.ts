@@ -1,7 +1,7 @@
 // hooks/useRunSession.ts
 import { useCallback, useEffect, useRef } from 'react';
 
-const SESSION_KEY = 'runTracker_session';
+const SESSION_KEY = 'run_start_time';
 const SAVE_INTERVAL = 10; // Save every 10 points
 const BACKUP_TIMER = 30000; // Backup every 30 seconds
 
@@ -88,6 +88,7 @@ export default function useRunSession(): UseRunSessionReturn {
       if (saved) {
         const parsed: RunSession = JSON.parse(saved);
         // Validate data structure
+
         if (parsed.metadata?.version === 1) {
           return parsed;
         }
@@ -193,7 +194,7 @@ export default function useRunSession(): UseRunSessionReturn {
         lat: point.lat,
         lng: point.lng,
         timestamp: point.timestamp || Date.now(),
-        accuracy: point.accuracy,
+        accuracy: point.accuracy || undefined, // Pastikan accuracy tidak null
       };
 
       const session = updateSession({
